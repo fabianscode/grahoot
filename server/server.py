@@ -1,5 +1,6 @@
 import ssl
 import socket
+import json
 
 BUFF_SIZE = 1024
 
@@ -14,14 +15,18 @@ if __name__ == "__main__":
     s.listen()
 
     accepting = True
-
     try:
         while accepting:
-            conn, addr = s.accept()
-            print(addr)
+            conn, (ip, port) = s.accept()
+
             with context.wrap_socket(conn, server_side=True) as secure_conn:
+                print(f"New connection from {ip}")
+
                 data = secure_conn.recv(BUFF_SIZE)
-                print(data)
+                data = data.decode('utf-8')
+                data = json.loads(data)
+
+                print(data["username"])
 
     except socket.timeout:
         pass
