@@ -1,4 +1,5 @@
 import sys
+import time
 import getopt
 import tls_connection as conn
 
@@ -49,18 +50,25 @@ def connect(hostname, port, game_pin, display_name, certificate_path):
     print("Connection established!")
 
     data = {
-        "username": display_name
+        "username": display_name,
+        "game_pin": game_pin
     }
 
     conn.send_dict(data)
 
     recv = conn.receive_dict()
-    print(recv["dieter"])
+    print(recv["message"])
+
+def quiz():
+    recv = conn.receive_dict()
+    print(recv["message"])
 
 
 def main(argv):
     hostname, port, game_pin, display_name, certificate_path = read_user_input(argv)
     connect(hostname, port, game_pin, display_name, certificate_path)
+
+    quiz()
 
 
 if __name__ == "__main__":

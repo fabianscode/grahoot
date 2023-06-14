@@ -11,6 +11,7 @@ def open_connection(hostname, port, chain_file):
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             global ssock 
+
             ssock = context.wrap_socket(sock, server_hostname=hostname)
             ssock.connect((hostname, port))
 
