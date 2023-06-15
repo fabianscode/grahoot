@@ -56,7 +56,10 @@ def connect(hostname, port, game_pin, display_name):
     conn.send_dict(data)
 
     recv = conn.receive_dict()
-    print(recv["message"])
+
+    if recv["status"] != 0:
+        print(recv["message"])
+        sys.exit()
 
 
 def print_question(question):
@@ -102,6 +105,8 @@ def quiz():
             break
 
         print_question(question)
+
+
 
         user_answer = get_user_answer(question["time"])
         conn.send_dict(user_answer)

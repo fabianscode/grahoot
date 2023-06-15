@@ -1,4 +1,5 @@
 import ssl
+import os
 import time
 import queue
 import random
@@ -26,7 +27,7 @@ def receive_dict(ssock):
 
 def accept_registrations(communication_queue, game_pin):
     while True:
-        conn, _ = s.accept()
+        conn, (ip, port) = s.accept()
 
         # I know this is bad code style - better solution needed
         if communication_queue.full():
@@ -41,24 +42,24 @@ def accept_registrations(communication_queue, game_pin):
 
         # Error handling
         if game_pin != given_game_pin:
-            send_dict({ "message": "Wrong game pin!" }, ssock)
+            send_dict({ "status": 1, "message": "Wrong game pin!" }, ssock)
             ssock.close()
             continue
 
         if username in established_connections.keys():
-            send_dict({ "message": "Username is already taken! Try again." }, ssock)
+            send_dict({ "status": 1, "message": "Username is already taken! Try again." }, ssock)
             ssock.close()
             continue
 
         established_connections[username] = ssock
         scores[username] = 0
-        send_dict({ "message": "You are registered! Get ready for some action ;-)" }, ssock)
+        send_dict({ "status": 0, "message": "You are registered! Get ready for some action ;-)" }, ssock)
 
 
 def wait_for_registration_end(communication_queue):
     print("Type \"end\" to end the registration phase")
 
-    while input("> ") != "end":
+    while input(" > ") != "end":
         print()
 
     print("Registration is over")
@@ -134,10 +135,22 @@ def print_leaderboard():
     sorted_leaderboard = sorted(scores.items(), key=lambda x:x[1], reverse=True)
 
     for index, (user, score) in enumerate(sorted_leaderboard):
-        print(score, " - ", user)
+        print("  ", index + 1, "\t", score, "\t - ", user)
 
     print()
 
+
+def print_solution(solution):
+    print("Solution:")
+    print(solution)
+
+
+def countdown(timespan):
+    for i in range (0, timespan):
+        time.sleep(1)
+
+        print("Time left: {:02d} s".format(timespan - i - 1), end='\r')
+        sys.stdout.flush()
 
 
 def handle_question(question):
@@ -155,7 +168,7 @@ def handle_question(question):
         user_answer_thread = threading.Thread(target=receive_answer, args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
         user_answer_thread.start()
 
-    time.sleep(int(question["time"]))
+    countdown(question["time"])
 
     for username, ssock in established_connections.items():
         send_dict({
@@ -163,7 +176,7 @@ def handle_question(question):
             "score": scores[username]
         }, ssock)
 
-    print()
+    print("\n\nSolution: ", correct_answer, "\n")
     print_leaderboard()
 
 
@@ -186,7 +199,7 @@ def start_quiz_phase():
         handle_question(question)
 
     end_quiz_phase()
-    sys.exit(0)
+    os._exit(0)
 
 
 if __name__ == "__main__":
