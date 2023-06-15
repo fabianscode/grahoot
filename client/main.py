@@ -59,9 +59,41 @@ def connect(hostname, port, game_pin, display_name, certificate_path):
     recv = conn.receive_dict()
     print(recv["message"])
 
+
+def print_question(question):
+    print(question["question"])
+    print("You've got ", question["time"], " seconds!\n")
+
+    for answer in question["answers"]:
+        print("\t", answer["id"], ": ", answer["answer"])
+
+    print()
+
+
+def get_user_answer():
+    user_answer = input("Type your answer > ")
+
+    user_answer = {
+        "selected_answer": user_answer
+    }
+
+    return user_answer
+
+
 def quiz():
-    recv = conn.receive_dict()
-    print(recv["message"])
+    print("The quiz begins!\n")
+
+    while True:
+        question = conn.receive_dict()
+
+        if "message" in question.keys() and question["message"] == "end":
+            break
+
+
+        print_question(question)
+        user_answer = get_user_answer()
+
+        conn.send_dict(user_answer)
 
 
 def main(argv):
