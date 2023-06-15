@@ -4,10 +4,13 @@ import json
 
 BUFF_SIZE = 1024
 
-def open_connection(hostname, port, chain_file):
+def open_connection(hostname, port):
     try:
         context = ssl.create_default_context()
-        context.load_verify_locations(chain_file)
+        #context.load_verify_locations(chain_file)
+
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.check_hostname = True
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             global ssock 

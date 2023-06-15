@@ -1,4 +1,5 @@
 import ssl
+import time
 import queue
 import random
 import sys
@@ -25,7 +26,7 @@ def receive_dict(ssock):
 
 def accept_registrations(communication_queue, game_pin):
     while True:
-        conn, (ip, port) = s.accept()
+        conn, _ = s.accept()
 
         # I know this is bad code style - better solution needed
         if communication_queue.full():
@@ -50,6 +51,7 @@ def accept_registrations(communication_queue, game_pin):
             continue
 
         established_connections[username] = ssock
+        scores[username] = 0
         send_dict({ "message": "You are registered! Get ready for some action ;-)" }, ssock)
 
 
@@ -84,22 +86,118 @@ def start_registration_phase():
     print()
 
 
-def start_quiz_phase():
+def read_questions(path):
+    questions = []
+
+    with open(path, "r") as quiz_file:
+        content = quiz_file.read()
+        questions = json.loads(content)
+
+        quiz_file.close()
+
+    return questions
+
+
+def receive_answer(username, question_id, correct_answer, begin_timestamp, question_time, points):
+    ssock = established_connections[username]
+
+    try:
+        user_answer = receive_dict(ssock)
+        user_answer = user_answer["selected_answer"]
+
+        received_timestamp = time.time()
+        time_passed = received_timestamp - begin_timestamp
+
+        answers[question_id] = (username, user_answer)
+
+        if user_answer == correct_answer:
+            score = int(points * ((1 - time_passed / question_time)) ** 2) + 500
+            scores[username] += score
+
+    except:
+        pass
+
+
+def print_question(question):
+    print(question["question"])
+    print("You've got ", question["time"], " seconds!\n")
+
+    for answer in question["answers"]:
+        print("\t", answer["id"], ": ", answer["answer"])
+
+    print()
+
+
+def print_leaderboard():
+    print("\n--- LEADERBOARD ---\n")
+
+    sorted_leaderboard = sorted(scores.items(), key=lambda x:x[1], reverse=True)
+
+    for index, (user, score) in enumerate(sorted_leaderboard):
+        print(score, " - ", user)
+
+    print()
+
+
+
+def handle_question(question):
+    print_question(question)
+
+    correct_answer = str(question["correct"])
+    del question["correct"]
+
+    begin_timestamp = time.time()
+
     for ssock in established_connections.values():
-        send_dict({ "message": "The quiz will start now!" }, ssock)
+        send_dict(question, ssock)
 
-    print("Starting quiz...")
+    for username, ssock in established_connections.items():
+        user_answer_thread = threading.Thread(target=receive_answer, args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
+        user_answer_thread.start()
 
+    time.sleep(int(question["time"]))
+
+    for username, ssock in established_connections.items():
+        send_dict({
+            "solution": correct_answer,
+            "score": scores[username]
+        }, ssock)
+
+    print()
+    print_leaderboard()
+
+
+def end_quiz_phase():
+    for ssock in established_connections.values():
+        send_dict({ "message": "end" }, ssock)
+
+
+def start_quiz_phase():
+    print("Starting quiz...\n")
+
+    questions = read_questions("quiz.json")
+
+    for question in questions:
+        print("Type \"next\" to start the next round")
+
+        while input(" > ") != "next":
+            pass
+
+        handle_question(question)
+
+    end_quiz_phase()
     sys.exit(0)
 
 
 if __name__ == "__main__":
     global established_connections
-    global accepting
+    global answers
+    global scores
     global s
 
     established_connections = {}
-    accepting = True
+    answers = {}
+    scores = {}
 
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(
