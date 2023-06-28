@@ -6,6 +6,7 @@ import random
 import sys
 import socket
 import json
+import getopt
 import threading
 
 
@@ -25,9 +26,9 @@ def receive_dict(ssock):
     return data
 
 
-def accept_registrations(communication_queue, game_pin):
+def accept_registrations(context, communication_queue, game_pin):
     while True:
-        conn, (ip, port) = s.accept()
+        conn, (ip, port) = socket.accept()
 
         # I know this is bad code style - better solution needed
         if communication_queue.full():
@@ -46,13 +47,13 @@ def accept_registrations(communication_queue, game_pin):
             ssock.close()
             continue
 
-        if username in established_connections.keys():
+        if username in connections.keys():
             send_dict({ "status": 1, "message": "Username is already taken! Try again." }, ssock)
             ssock.close()
             continue
 
-        established_connections[username] = ssock
-        scores[username] = 0
+        connections[username] = ssock
+        scoreboard[username] = 0
         send_dict({ "status": 0, "message": "You are registered! Get ready for some action ;-)" }, ssock)
 
 
@@ -66,7 +67,7 @@ def wait_for_registration_end(communication_queue):
     communication_queue.put(1)
 
 
-def start_registration_phase():
+def start_registration_phase(context):
     game_pin = str(random.randint(1000, 9999))
 
     print("Registration is open!")
@@ -74,14 +75,14 @@ def start_registration_phase():
 
     communication_queue = queue.Queue(1)
 
-    registration_thread = threading.Thread(target=accept_registrations, args=(communication_queue, game_pin))
+    registration_thread = threading.Thread(target=accept_registrations, args=(context, communication_queue, game_pin))
     registration_thread.start()
 
     wait_for_registration_end(communication_queue)
 
     print("Participants:\n")
 
-    for name in established_connections.keys():
+    for name in connections.keys():
         print(" - ", name)
 
     print()
@@ -100,7 +101,7 @@ def read_questions(path):
 
 
 def receive_answer(username, question_id, correct_answer, begin_timestamp, question_time, points):
-    ssock = established_connections[username]
+    ssock = connections[username]
 
     try:
         user_answer = receive_dict(ssock)
@@ -113,7 +114,7 @@ def receive_answer(username, question_id, correct_answer, begin_timestamp, quest
 
         if user_answer == correct_answer:
             score = int(points * ((1 - time_passed / question_time)) ** 2) + 500
-            scores[username] += score
+            scoreboard[username] += score
 
     except:
         pass
@@ -132,7 +133,7 @@ def print_question(question):
 def print_leaderboard():
     print("\n--- LEADERBOARD ---\n")
 
-    sorted_leaderboard = sorted(scores.items(), key=lambda x:x[1], reverse=True)
+    sorted_leaderboard = sorted(scoreboard.items(), key=lambda x:x[1], reverse=True)
 
     for index, (user, score) in enumerate(sorted_leaderboard):
         print("  ", index + 1, "\t", score, "\t - ", user)
@@ -161,19 +162,19 @@ def handle_question(question):
 
     begin_timestamp = time.time()
 
-    for ssock in established_connections.values():
+    for ssock in connections.values():
         send_dict(question, ssock)
 
-    for username, ssock in established_connections.items():
+    for username, ssock in connections.items():
         user_answer_thread = threading.Thread(target=receive_answer, args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
         user_answer_thread.start()
 
     countdown(question["time"])
 
-    for username, ssock in established_connections.items():
+    for username, ssock in connections.items():
         send_dict({
             "solution": correct_answer,
-            "score": scores[username]
+            "score": scoreboard[username]
         }, ssock)
 
     print("\n\nSolution: ", correct_answer, "\n")
@@ -181,14 +182,14 @@ def handle_question(question):
 
 
 def end_quiz_phase():
-    for ssock in established_connections.values():
+    for ssock in connections.values():
         send_dict({ "message": "end" }, ssock)
 
 
-def start_quiz_phase():
+def start_quiz_phase(inputfile):
     print("Starting quiz...\n")
 
-    questions = read_questions("quiz.json")
+    questions = read_questions(inputfile)
 
     for question in questions:
         print("Type \"next\" to start the next round")
@@ -202,24 +203,62 @@ def start_quiz_phase():
     os._exit(0)
 
 
-if __name__ == "__main__":
-    global established_connections
-    global answers
-    global scores
-    global s
+def print_usage():
+    print("""server.py [-i inputfile] [-p port] [-f tls_fullchain] [-k tls_private_key]""")
 
-    established_connections = {}
+
+def read_user_input(argv):
+    inputfile = ""
+    port = ""
+    tls_fullchain = ""
+    tls_private_key = ""
+
+    opts, _ = getopt.getopt(argv, "hi:p:f:k:")
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print_usage()
+            sys.exit()
+        elif opt in ("-i"):
+            inputfile = arg
+        elif opt in ("-p"):
+            port = arg
+        elif opt in ("-f"):
+            tls_fullchain = arg
+        elif opt in ("-k"):
+            tls_private_key = arg
+
+    if "" in [inputfile, port, tls_fullchain, tls_private_key]:
+        print_usage()
+        sys.exit()
+
+    return inputfile, int(port, base=10), tls_fullchain, tls_private_key
+
+
+def main(argv):
+    global connections
+    global answers
+    global scoreboard
+    global socket
+
+    connections = {}
     answers = {}
-    scores = {}
+    scoreboard = {}
+
+    inputfile, port, fullchain, private_key = read_user_input(argv)
 
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(
-            certfile="/etc/letsencrypt/live/grahoot.fabianspecht.xyz/fullchain.pem",
-            keyfile="/etc/letsencrypt/live/grahoot.fabianspecht.xyz/privkey.pem")
+            certfile=fullchain,
+            keyfile=private_key)
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 8004))
-    s.listen()
+    socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    socket.bind(("", port))
+    socket.listen()
 
-    start_registration_phase()
-    start_quiz_phase()
+    start_registration_phase(context)
+    start_quiz_phase(inputfile)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
