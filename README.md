@@ -6,3 +6,5 @@ works only with single choice so far
 timeouts have to be rewritten
 
 codestyle not optimal yet
+
+json entry names not consistent yet
