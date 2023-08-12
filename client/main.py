@@ -106,8 +106,6 @@ def quiz():
 
         print_question(question)
 
-
-
         user_answer = get_user_answer(question["time"])
         conn.send_dict(user_answer)
 

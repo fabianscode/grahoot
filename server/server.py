@@ -166,7 +166,9 @@ def handle_question(question):
         send_dict(question, ssock)
 
     for username, ssock in connections.items():
-        user_answer_thread = threading.Thread(target=receive_answer, args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
+        user_answer_thread = threading.Thread(
+                target=receive_answer, 
+                args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
         user_answer_thread.start()
 
     countdown(question["time"])
@@ -183,7 +185,7 @@ def handle_question(question):
 
 def end_quiz_phase():
     for ssock in connections.values():
-        send_dict({ "message": "end" }, ssock)
+        send_dict({ "message": "registration end" }, ssock)
 
 
 def start_quiz_phase(inputfile):
