@@ -42,7 +42,7 @@ server -> clients:
         { "text": "<text>" },
         ...
     ], -- only used for single and multiple choice
-    "answer": "Index <indicies of correct choices comma separated>" | "Guess <correct number or string>"
+    "solution": "Index <indicies of correct choices comma separated>" | "Guess <correct number or string>"
 }
 ```
 
@@ -54,4 +54,19 @@ client -> server:
 }
 ```
 
-WIP
+server -> clients:
+```
+{
+    "solution": "<solution>",
+    "score": "<new_user_score>"
+}
+```
+
+### end phase
+
+server -> clients:
+```
+{
+    "message": "end"
+}
+```
