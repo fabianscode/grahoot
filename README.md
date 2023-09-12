@@ -2,6 +2,8 @@
 
 ## protcol
 
+All data is exchanged via the JSON format because it's easy to use in python
+
 ### registration phase
 
 client -> server:
