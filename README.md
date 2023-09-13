@@ -47,7 +47,8 @@ server -> clients:
     ], -- only used for single and multiple choice
     "solution": "Index <indicies of correct choices comma separated>" | "Guess <correct number>" -- if type is not "guess string",
     "solution": [
-        { "text": "<possible answer>" }
+        { "text": "<possible answer>" },
+        ...
     ], -- if type is "guess string"
     "rad": "<radius to get points in>" -- this entry exists only for number guesses
 }
