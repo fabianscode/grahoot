@@ -5,28 +5,42 @@ import queue
 import random
 import sys
 import socket
-import json
-import getopt
 import threading
+from helpers import *
 
 
-BUFF_SIZE = 1024
+def registration_phase(context, connections, tokens):
+    game_pin = str(random.randint(1000, 9999))
+
+    print("Registration is open!")
+    print("Game pin: ", game_pin, "\n")
+
+    communication_queue = queue.Queue(1)
+
+    registration_thread = threading.Thread(target=accept_registrations, args=(context, connections, communication_queue, game_pin, tokens))
+    registration_thread.start()
+
+    wait_for_registration_end(communication_queue)
+
+    print("Participants:\n")
+
+    for name in connections.keys():
+        print(" - ", name)
+
+    print()
 
 
-def send_dict(dict_data, ssock):
-    dict_data = json.dumps(dict_data)
-    ssock.sendall(bytes(dict_data, encoding="utf-8"))
+def wait_for_registration_end(communication_queue):
+    print("Type \"end\" to end the registration phase")
+
+    while input(" > ") != "end":
+        print()
+
+    print("Registration is over")
+    communication_queue.put(1)
 
 
-def receive_dict(ssock):
-    data = ssock.recv(BUFF_SIZE)
-    data = data.decode("utf-8")
-    data = json.loads(data)
-
-    return data
-
-
-def accept_registrations(context, communication_queue, game_pin):
+def accept_registrations(context, connections, communication_queue, game_pin, tokens):
     while True:
         conn, (ip, port) = socket.accept()
 
@@ -43,155 +57,44 @@ def accept_registrations(context, communication_queue, game_pin):
 
         # Error handling
         if game_pin != given_game_pin:
-            send_dict({ "status": 1, "message": "Wrong game pin!" }, ssock)
+            send_dict({ 
+                "status": "1", 
+                "message": "Wrong game pin!"
+            }, ssock)
+
             ssock.close()
             continue
 
         if username in connections.keys():
-            send_dict({ "status": 1, "message": "Username is already taken! Try again." }, ssock)
+            send_dict({ 
+                "status": "1", 
+                "message": "Username is already taken! Try again."
+            }, ssock)
+
             ssock.close()
             continue
 
         connections[username] = ssock
-        scoreboard[username] = 0
-        send_dict({ "status": 0, "message": "You are registered! Get ready for some action ;-)" }, ssock)
 
+        token = str(random.randint(0, 2**32))
+        tokens[username] = token
 
-def wait_for_registration_end(communication_queue):
-    print("Type \"end\" to end the registration phase")
-
-    while input(" > ") != "end":
-        print()
-
-    print("Registration is over")
-    communication_queue.put(1)
-
-
-def start_registration_phase(context):
-    game_pin = str(random.randint(1000, 9999))
-
-    print("Registration is open!")
-    print("Game pin: ", game_pin, "\n")
-
-    communication_queue = queue.Queue(1)
-
-    registration_thread = threading.Thread(target=accept_registrations, args=(context, communication_queue, game_pin))
-    registration_thread.start()
-
-    wait_for_registration_end(communication_queue)
-
-    print("Participants:\n")
-
-    for name in connections.keys():
-        print(" - ", name)
-
-    print()
-
-
-def read_questions(path):
-    questions = []
-
-    with open(path, "r") as quiz_file:
-        content = quiz_file.read()
-        questions = json.loads(content)
-
-        quiz_file.close()
-
-    return questions
-
-
-def receive_answer(username, question_id, correct_answer, begin_timestamp, question_time, points):
-    ssock = connections[username]
-
-    try:
-        user_answer = receive_dict(ssock)
-        user_answer = user_answer["selected_answer"]
-
-        received_timestamp = time.time()
-        time_passed = received_timestamp - begin_timestamp
-
-        answers[question_id] = (username, user_answer)
-
-        if user_answer == correct_answer:
-            score = int(points * ((1 - time_passed / question_time)) ** 2) + 500
-            scoreboard[username] += score
-
-    except:
-        pass
-
-
-def print_question(question):
-    print(question["question"])
-    print("You've got ", question["time"], " seconds!\n")
-
-    for answer in question["answers"]:
-        print("\t", answer["id"], ": ", answer["answer"])
-
-    print()
-
-
-def print_leaderboard():
-    print("\n--- LEADERBOARD ---\n")
-
-    sorted_leaderboard = sorted(scoreboard.items(), key=lambda x:x[1], reverse=True)
-
-    for index, (user, score) in enumerate(sorted_leaderboard):
-        print("  ", index + 1, "\t", score, "\t - ", user)
-
-    print()
-
-
-def print_solution(solution):
-    print("Solution:")
-    print(solution)
-
-
-def countdown(timespan):
-    for i in range (0, timespan):
-        time.sleep(1)
-
-        print("Time left: {:02d} s".format(timespan - i - 1), end='\r')
-        sys.stdout.flush()
-
-
-def handle_question(question):
-    print_question(question)
-
-    correct_answer = str(question["correct"])
-    del question["correct"]
-
-    begin_timestamp = time.time()
-
-    for ssock in connections.values():
-        send_dict(question, ssock)
-
-    for username, ssock in connections.items():
-        user_answer_thread = threading.Thread(
-                target=receive_answer, 
-                args=(username, ssock, correct_answer, begin_timestamp, question["time"], question["points"]))
-        user_answer_thread.start()
-
-    countdown(question["time"])
-
-    for username, ssock in connections.items():
-        send_dict({
-            "solution": correct_answer,
-            "score": scoreboard[username]
+        send_dict({ 
+            "status": "0", 
+            "message": "You are registered! Get ready for some action ;-)",
+            "token": token
         }, ssock)
 
-    print("\n\nSolution: ", correct_answer, "\n")
-    print_leaderboard()
 
-
-def end_quiz_phase():
-    for ssock in connections.values():
-        send_dict({ "message": "registration end" }, ssock)
-
-
-def start_quiz_phase(inputfile):
+def quiz_phase(inputfile, connections, tokens):
     print("Starting quiz...\n")
 
     questions = read_questions(inputfile)
+    answers = {}
+    scoreboard = {}
+
+    for username in connections.keys():
+        scoreboard[username] = 0
 
     for question in questions:
         print("Type \"next\" to start the next round")
@@ -199,56 +102,58 @@ def start_quiz_phase(inputfile):
         while input(" > ") != "next":
             pass
 
-        handle_question(question)
+        handle_question(question, connections, answers, scoreboard, tokens)
 
-    end_quiz_phase()
+    end_quiz_phase(connections)
     os._exit(0)
 
 
-def print_usage():
-    print("""server.py [-i inputfile] [-p port] [-f tls_fullchain] [-k tls_private_key]""")
+def handle_question(question, connections, answers, scoreboard, tokens):
+    print_question(question)
+
+    solution = question["solution"]
+    del question["solution"]
+
+    begin_timestamp = time.time()
+
+    for ssock in connections.values():
+        send_dict(question, ssock)
+
+    question["solution"] = solution
+
+    for username, ssock in connections.items():
+        user_answer_thread = threading.Thread(
+                target=receive_answer, 
+                args=(username, question, begin_timestamp, connections, answers, scoreboard, tokens[username]))
+        user_answer_thread.start()
+
+    countdown(question["time"])
+
+    for username, ssock in connections.items():
+        send_dict({
+            "solution": solution,
+            "score": scoreboard[username]
+        }, ssock)
+
+    print("\n\nSolution: ", solution, "\n")
+
+    print_scoreboard(scoreboard)
 
 
-def read_user_input(argv):
-    inputfile = ""
-    port = ""
-    tls_fullchain = ""
-    tls_private_key = ""
-
-    opts, _ = getopt.getopt(argv, "hi:p:f:k:")
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print_usage()
-            sys.exit()
-        elif opt in ("-i"):
-            inputfile = arg
-        elif opt in ("-p"):
-            port = arg
-        elif opt in ("-f"):
-            tls_fullchain = arg
-        elif opt in ("-k"):
-            tls_private_key = arg
-
-    if "" in [inputfile, port, tls_fullchain, tls_private_key]:
-        print_usage()
-        sys.exit()
-
-    return inputfile, int(port, base=10), tls_fullchain, tls_private_key
+def end_quiz_phase(connections):
+    for ssock in connections.values():
+        send_dict({ "message": "registration end" }, ssock)
 
 
 def main(argv):
-    global connections
-    global answers
-    global scoreboard
     global socket
 
     connections = {}
-    answers = {}
-    scoreboard = {}
+    tokens = {}
 
     inputfile, port, fullchain, private_key = read_user_input(argv)
 
+    # load tls certificate
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(
             certfile=fullchain,
@@ -258,9 +163,10 @@ def main(argv):
     socket.bind(("", port))
     socket.listen()
 
-    start_registration_phase(context)
-    start_quiz_phase(inputfile)
+    registration_phase(context, connections, tokens)
+    quiz_phase(inputfile, connections, tokens)
 
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+
