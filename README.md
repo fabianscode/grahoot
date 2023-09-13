@@ -1,5 +1,10 @@
 # grahoot
 
+## TODO
+- option not to use tls
+- show live clock in client
+- cleaner input handling in client
+
 ## protcol
 
 All data is exchanged via the JSON format because it's easy to use in python.
