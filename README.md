@@ -4,6 +4,7 @@
 - option not to use tls
 - show live clock in client
 - cleaner input handling in client
+- make backend controlable through stdin/stdout
 
 ## protcol
 
