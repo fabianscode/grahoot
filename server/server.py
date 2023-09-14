@@ -9,7 +9,7 @@ import threading
 from helpers import *
 
 
-def registration_phase(context, connections):
+def registration_phase(context, connections, socket):
     game_pin = str(random.randint(1000, 9999))
 
     print("Registration is open!")
@@ -17,7 +17,7 @@ def registration_phase(context, connections):
 
     communication_queue = queue.Queue(1)
 
-    registration_thread = threading.Thread(target=accept_registrations, args=(context, connections, communication_queue, game_pin))
+    registration_thread = threading.Thread(target=accept_registrations, args=(context, socket, connections, communication_queue, game_pin))
     registration_thread.start()
 
     wait_for_registration_end(communication_queue)
@@ -40,7 +40,7 @@ def wait_for_registration_end(communication_queue):
     communication_queue.put(1)
 
 
-def accept_registrations(context, connections, communication_queue, game_pin):
+def accept_registrations(context, socket, connections, communication_queue, game_pin):
     while True:
         conn, (ip, port) = socket.accept()
 
@@ -142,8 +142,6 @@ def end_quiz_phase(connections):
 
 
 def main(argv):
-    global socket
-
     connections = {}
 
     inputfile, port, fullchain, private_key = read_user_input(argv)
@@ -154,12 +152,12 @@ def main(argv):
             certfile=fullchain,
             keyfile=private_key)
 
-    socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket.bind(("", port))
-    socket.listen()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("", port))
+        sock.listen()
 
-    registration_phase(context, connections)
-    quiz_phase(inputfile, connections)
+        registration_phase(context, connections, sock)
+        quiz_phase(inputfile, connections)
 
 
 if __name__ == "__main__":
