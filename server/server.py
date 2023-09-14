@@ -9,7 +9,7 @@ import threading
 from helpers import *
 
 
-def registration_phase(context, connections, tokens):
+def registration_phase(context, connections):
     game_pin = str(random.randint(1000, 9999))
 
     print("Registration is open!")
@@ -17,7 +17,7 @@ def registration_phase(context, connections, tokens):
 
     communication_queue = queue.Queue(1)
 
-    registration_thread = threading.Thread(target=accept_registrations, args=(context, connections, communication_queue, game_pin, tokens))
+    registration_thread = threading.Thread(target=accept_registrations, args=(context, connections, communication_queue, game_pin))
     registration_thread.start()
 
     wait_for_registration_end(communication_queue)
@@ -40,7 +40,7 @@ def wait_for_registration_end(communication_queue):
     communication_queue.put(1)
 
 
-def accept_registrations(context, connections, communication_queue, game_pin, tokens):
+def accept_registrations(context, connections, communication_queue, game_pin):
     while True:
         conn, (ip, port) = socket.accept()
 
@@ -76,17 +76,13 @@ def accept_registrations(context, connections, communication_queue, game_pin, to
 
         connections[username] = ssock
 
-        token = str(random.randint(0, 2**32))
-        tokens[username] = token
-
         send_dict({ 
             "status": "0", 
-            "message": "You are registered! Get ready for some action ;-)",
-            "token": token
+            "message": "You are registered! Get ready for some action ;-)"
         }, ssock)
 
 
-def quiz_phase(inputfile, connections, tokens):
+def quiz_phase(inputfile, connections):
     print("Starting quiz...\n")
 
     questions = read_questions(inputfile)
@@ -102,13 +98,13 @@ def quiz_phase(inputfile, connections, tokens):
         while input(" > ") != "next":
             pass
 
-        handle_question(question, connections, answers, scoreboard, tokens)
+        handle_question(question, connections, answers, scoreboard)
 
     end_quiz_phase(connections)
     os._exit(0)
 
 
-def handle_question(question, connections, answers, scoreboard, tokens):
+def handle_question(question, connections, answers, scoreboard):
     print_question(question)
 
     solution = question["solution"]
@@ -124,7 +120,7 @@ def handle_question(question, connections, answers, scoreboard, tokens):
     for username, ssock in connections.items():
         user_answer_thread = threading.Thread(
                 target=receive_answer, 
-                args=(username, question, begin_timestamp, connections, answers, scoreboard, tokens[username]))
+                args=(username, question, begin_timestamp, connections, answers, scoreboard))
         user_answer_thread.start()
 
     countdown(question["time"])
@@ -149,7 +145,6 @@ def main(argv):
     global socket
 
     connections = {}
-    tokens = {}
 
     inputfile, port, fullchain, private_key = read_user_input(argv)
 
@@ -163,8 +158,8 @@ def main(argv):
     socket.bind(("", port))
     socket.listen()
 
-    registration_phase(context, connections, tokens)
-    quiz_phase(inputfile, connections, tokens)
+    registration_phase(context, connections)
+    quiz_phase(inputfile, connections)
 
 
 if __name__ == "__main__":

@@ -26,8 +26,7 @@ server -> client:
 ```
 {
     "status": "<0 when successful; 1 otherwise>",
-    "message": "<descriptive message>",
-    "token": "<token>"
+    "message": "<descriptive message>"
 }
 ```
 
@@ -63,7 +62,6 @@ server -> clients:
 client -> server:
 ```
 {
-    "token": "<token>",
     "answer": "<answer>"
 }
 ```

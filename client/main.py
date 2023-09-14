@@ -26,10 +26,8 @@ def registration_phase(hostname, port, game_pin, display_name):
         print(server_answer["message"])
         sys.exit()
 
-    return server_answer["token"]
 
-
-def quiz_phase(token):
+def quiz_phase():
     print("The quiz begins!\n")
 
     while True:
@@ -41,7 +39,6 @@ def quiz_phase(token):
         print_question(question)
 
         user_answer = get_user_answer(question["time"])
-        user_answer["token"] = token
 
         conn.send_dict(user_answer)
 
@@ -56,8 +53,8 @@ def quiz_phase(token):
 def main(argv):
     hostname, port, game_pin, display_name = read_user_input(argv)
 
-    token = registration_phase(hostname, port, game_pin, display_name)
-    quiz_phase(token)
+    registration_phase(hostname, port, game_pin, display_name)
+    quiz_phase()
 
 
 if __name__ == "__main__":

@@ -30,17 +30,10 @@ def read_questions(path):
     return questions
 
 
-def receive_answer(username, question, begin_timestamp, connections, answers, scoreboard, token):
+def receive_answer(username, question, begin_timestamp, connections, answers, scoreboard):
     ssock = connections[username]
 
     user_answer = receive_dict(ssock)
-
-    # try until token is right
-    # but should probably not be a problem when using tls
-    while token != user_answer["token"]:
-        print("wrong token")
-        user_answer = receive_dict(ssock)
-
     user_answer = user_answer["answer"]
 
     points = int(question["points"])
