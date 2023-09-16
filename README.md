@@ -21,7 +21,7 @@ pipx install grahoot-py
 - cleaner input handling in client
 - make backend controlable through stdin/stdout
 
-## protcol
+## protocol
 
 All data is exchanged via the JSON format because it's easy to use in python.
 TLS will be used by default.
