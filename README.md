@@ -1,5 +1,7 @@
 # grahoot
 
+## installation
+
 the cli client can be installed via the python package index:
 
 ```
