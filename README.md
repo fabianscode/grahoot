@@ -15,7 +15,7 @@ pipx install grahoot-py
 ```
 
 
-## TODO
+## todo
 - option not to use tls
 - show live clock in client
 - cleaner input handling in client
