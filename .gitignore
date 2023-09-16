@@ -1,1 +1,5 @@
-__pycache__/
+_build/
+dist/
+_pycache__/
+grahoot_py.egg-info/
+.venv

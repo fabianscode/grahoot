@@ -1,6 +1,6 @@
 import sys
-import tls_connection as conn
-from helpers import *
+import grahoot_cli.tls_connection as conn
+from grahoot_cli.helpers import *
 
 def registration_phase(hostname, port, game_pin, display_name):
     print(f"Connecting to {hostname}:{port} ...")
@@ -50,13 +50,12 @@ def quiz_phase():
         print()
 
 
-def main(argv):
+def main():
+    argv = sys.argv[1:]
     hostname, port, game_pin, display_name = read_user_input(argv)
 
     registration_phase(hostname, port, game_pin, display_name)
     quiz_phase()
 
 
-if __name__ == "__main__":
-    main(sys.argv[1:])
-
+grahoot_cli = main()
