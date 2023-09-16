@@ -1,5 +1,18 @@
 # grahoot
 
+the cli client can be installed via the python package index:
+
+```
+pip install grahoot-py
+```
+
+or with automatically managed environments
+
+```
+pipx install grahoot-py
+```
+
+
 ## TODO
 - option not to use tls
 - show live clock in client
