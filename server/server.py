@@ -9,40 +9,43 @@ import threading
 from helpers import *
 
 
-def registration_phase(context, connections, socket):
+def registration_phase(context, connections, socket, interactive_mode):
     game_pin = str(random.randint(1000, 9999))
 
-    print("Registration is open!")
-    print("Game pin: ", game_pin, "\n")
+    if interactive_mode:
+        print("Registration is open!")
+        print("Game pin: ", game_pin, "\n")
+    else:
+        print(game_pin)
 
     communication_queue = queue.Queue(1)
 
-    registration_thread = threading.Thread(target=accept_registrations, args=(context, socket, connections, communication_queue, game_pin))
+    registration_thread = threading.Thread(target=accept_registrations, args=(context, socket, connections, communication_queue, game_pin, interactive_mode))
     registration_thread.start()
 
-    wait_for_registration_end(communication_queue)
-
-    print("Participants:\n")
-
-    for name in connections.keys():
-        print(" - ", name)
-
-    print()
+    wait_for_registration_end(communication_queue, interactive_mode)
 
 
-def wait_for_registration_end(communication_queue):
-    print("Type \"end\" to end the registration phase")
+def wait_for_registration_end(communication_queue, interactive_mode):
+    if interactive_mode:
+        print("Type \"end\" to end the registration phase")
 
-    while input(" > ") != "end":
-        print()
+        while input(" > ") != "end":
+            print()
 
-    print("Registration is over")
+        print("Registration is over")
+    else:
+        while input() != "end":
+            pass
+
+        print("ok")
+
     communication_queue.put(1)
 
 
-def accept_registrations(context, socket, connections, communication_queue, game_pin):
+def accept_registrations(context, socket, connections, communication_queue, game_pin, interactive_mode):
     while True:
-        conn, (ip, port) = socket.accept()
+        conn, _ = socket.accept()
 
         # I know this is bad code style - better solution needed
         if communication_queue.full():
@@ -81,8 +84,14 @@ def accept_registrations(context, socket, connections, communication_queue, game
             "message": "You are registered! Get ready for some action ;-)"
         }, ssock)
 
+        if interactive_mode:
+            print(username, " joined")
+        else:
+            print(username)
+            check_ok()
 
-def quiz_phase(inputfile, connections):
+
+def quiz_phase(inputfile, connections, interactive_mode):
     print("Starting quiz...\n")
 
     questions = read_questions(inputfile)
@@ -144,7 +153,7 @@ def end_quiz_phase(connections):
 def main(argv):
     connections = {}
 
-    inputfile, port, fullchain, private_key = read_user_input(argv)
+    inputfile, port, fullchain, private_key, interactive_mode = read_user_input(argv)
 
     # load tls certificate
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -156,8 +165,8 @@ def main(argv):
         sock.bind(("", port))
         sock.listen()
 
-        registration_phase(context, connections, sock)
-        quiz_phase(inputfile, connections)
+        registration_phase(context, connections, sock, interactive_mode)
+        quiz_phase(inputfile, connections, interactive_mode)
 
 
 if __name__ == "__main__":

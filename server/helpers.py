@@ -121,7 +121,7 @@ def countdown(timespan):
 
 
 def print_usage():
-    print("""server.py [-i inputfile] [-p port] [-f tls_fullchain] [-k tls_private_key]""")
+    print("""server.py [-i inputfile] [-p port] [-f tls_fullchain] [-k tls_private_key] [-I]""")
 
 
 def read_user_input(argv):
@@ -129,6 +129,7 @@ def read_user_input(argv):
     port = ""
     tls_fullchain = ""
     tls_private_key = ""
+    interactive_mode = False
 
     opts, _ = getopt.getopt(argv, "hi:p:f:k:")
 
@@ -144,10 +145,17 @@ def read_user_input(argv):
             tls_fullchain = arg
         elif opt in ("-k"):
             tls_private_key = arg
+        elif opt in ("-I"):
+            interactive_mode = True
 
     if "" in [inputfile, port, tls_fullchain, tls_private_key]:
         print_usage()
         sys.exit()
 
-    return inputfile, int(port, base=10), tls_fullchain, tls_private_key
+    return inputfile, int(port, base=10), tls_fullchain, tls_private_key, interactive_mode
 
+
+def check_ok():
+    if input() != "ok":
+        print("error")
+        sys.exit(1)

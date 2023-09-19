@@ -21,7 +21,7 @@ pipx install grahoot-py
 - cleaner input handling in client
 - make backend controlable through stdin/stdout
 
-## protocol
+## protocol quiz-client <-> server
 
 All data is exchanged via the JSON format because it's easy to use in python.
 TLS will be used by default.
@@ -97,3 +97,35 @@ server -> clients:
     "message": "end"
 }
 ```
+
+## server control protocol via stdin/stdout (WIP)
+This protocol gives the user the control over the server using it's stdin/stdout, 
+which might be useful for remote control. For example, there could be a supervising
+process - acting as a server - responsible for multiple quizzes at once, 
+giving the 'quiz master' the ability to start a quiz via a website or any other client.
+
+controller will be C and server S
+
+### registration phase
+
+```
+S: <game_pin>
+C: ok
+
+foreach new_user:
+    S: <new_user>
+    C: ok
+
+C: end
+S: ok
+S: <num of participants>
+C: ok
+
+```
+
+If an ok is expected but something else is received, "error" will be written to
+stdout.
+
+### quiz phase
+
+### end phase
