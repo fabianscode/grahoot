@@ -1,5 +1,7 @@
 # grahoot
 
+# this repo is no longer maintained. Moved to https://git.sr.ht/~fabiancodes/grahoot
+
 ## installation
 
 the cli client can be installed via the python package index:
